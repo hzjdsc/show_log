@@ -1,0 +1,10 @@
+{
+    "app":{
+        "launch":{
+            "local_path": "html/index.html"
+        }
+    },
+    "name":"Show Log",
+    "manifest_version":2,
+    "version":"0.1"
+}
