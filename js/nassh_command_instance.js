@@ -20,37 +20,7 @@ lib.rtdep('lib.f', 'lib.fs',
  *
  * @param {Object} argv The argument object passed in from the Terminal.
  */
-nassh.CommandInstance = function(argv) {
-  // Command arguments.
-  this.argv_ = argv;
-
-  // Command environment.
-  this.environment_ = argv.environment || {};
-
-  // hterm.Terminal.IO instance.
-  this.io = null;
-
-  // Relay manager.
-  this.relay_ = null;
-
-  // Parsed extension manifest.
-  this.manifest_ = null;
-
-  // The HTML5 persistent FileSystem instance for this extension.
-  this.fileSystem_ = null;
-
-  // An HTML5 DirectoryEntry for /.ssh/.
-  this.sshDirectoryEntry_ = null;
-
-  // Root preference manager.
-  this.prefs_ = new nassh.PreferenceManager();
-
-  // Counters used to acknowledge writes from the plugin.
-  this.stdoutAcknowledgeCount_ = 0;
-  this.stderrAcknowledgeCount_ = 0;
-
-  // Prevent us from reporting an exit twice.
-  this.exited_ = false;
+nassh.CommandInstance = function() {
 };
 
 /**
@@ -62,13 +32,6 @@ nassh.CommandInstance = function(argv) {
 nassh.CommandInstance.prototype.commandName = 'nassh';
 
 /**
- * Static run method invoked by the terminal.
- */
-nassh.CommandInstance.run = function(argv) {
-  return new nassh.CommandInstance(argv);
-};
-
-/**
  * Start the nassh command.
  *
  * Instance run method invoked by the nassh.CommandInstance ctor.
@@ -77,7 +40,9 @@ nassh.CommandInstance.prototype.run = function() {
   // Useful for console debugging.
   window.nassh_ = this;
 
-  this.io = this.argv_.io.push();
+  this.io = {};
+  this.io.print = console.log.bind(console);
+  this.io.println = console.log.bind(console);
 
   // Similar to lib.fs.err, except this logs to the terminal too.
   var ferr = function(msg) {
@@ -90,9 +55,6 @@ nassh.CommandInstance.prototype.run = function() {
     }.bind(this);
   }.bind(this);
 
-  this.prefs_.readStorage(function() {
-    nassh.loadManifest(onManifestLoaded, ferr('Manifest load failed'));
-  });
 
   var onManifestLoaded = function(manifest) {
     this.manifest_ = manifest;
@@ -130,40 +92,14 @@ nassh.CommandInstance.prototype.run = function() {
         this.io.println('');
       }
     }
-
-    nassh.getFileSystem(onFileSystemFound, ferr('FileSystem init failed'));
   }.bind(this);
-
-  var onFileSystemFound = function(fileSystem, sshDirectoryEntry) {
-    this.fileSystem_ = fileSystem;
-    this.sshDirectoryEntry_ = sshDirectoryEntry;
-
-    var argstr = this.argv_.argString;
-
-    // This item is set before we redirect away to login to a relay server.
-    // If it's set now, it's the first time we're reloading after the redirect.
-    var pendingRelay = window.sessionStorage.getItem('nassh.pendingRelay');
-    window.sessionStorage.removeItem('nassh.pendingRelay');
-
-    if (!argstr || (window.sessionStorage.getItem('nassh.promptOnReload') &&
-                    !pendingRelay)) {
-      // If promptOnReload is set or we haven't gotten the destination
-      // as an argument then we need to ask the user for the destination.
-      //
-      // The promptOnReload session item allows us to remember that we've
-      // displayed the dialog, so we can re-display it if the user reloads
-      // the page.  (Items in sessionStorage are scoped to the tab, kept
-      // between page reloads, and discarded when the tab goes away.)
-      window.sessionStorage.setItem('nassh.promptOnReload', 'yes');
-
-      this.promptForDestination_();
-    } else {
-      if (!this.connectToArgString(argstr)) {
-        this.io.println(nassh.msg('BAD_DESTINATION', [this.argv_.argString]));
-        this.exit(1);
-      }
-    }
-  }.bind(this);
+  nassh.loadManifest(onManifestLoaded, ferr('Manifest load failed'));
+/*
+  this.promptForDestination_();
+  this.connectToArgString(argstr);
+  this.io.println(nassh.msg('BAD_DESTINATION', [this.argv_.argString]));
+  this.exit(1);
+*/
 };
 
 /**

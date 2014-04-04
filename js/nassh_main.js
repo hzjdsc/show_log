@@ -9,7 +9,8 @@
 window.onload = function() {
   
   function execNaSSH() {
-	nassh_command = new nassh.CommandInstance();
+	var nassh_command = new nassh.CommandInstance();
+	nassh_command.run();
   }
 
   lib.init(execNaSSH, console.log.bind(console));
