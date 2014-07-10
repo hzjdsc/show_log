@@ -1,10 +1,14 @@
 {
-    "app":{
-        "launch":{
-            "local_path": "html/index.html"
-        }
-    },
     "name":"Show Log",
     "manifest_version":2,
-    "version":"0.1"
+    "version":"0.1",
+	"default_locale": "en",
+	"permissions": [
+		"storage"
+	],
+    "app":{
+        "launch":{
+            "local_path": "html/home.html"
+        }
+    }
 }

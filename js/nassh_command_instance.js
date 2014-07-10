@@ -55,7 +55,6 @@ nassh.CommandInstance.prototype.run = function() {
     }.bind(this);
   }.bind(this);
 
-
   var onManifestLoaded = function(manifest) {
     this.manifest_ = manifest;
 
@@ -67,33 +66,9 @@ nassh.CommandInstance.prototype.run = function() {
         nassh.msg('WELCOME_VERSION',
                   ['\x1b[1m' + this.manifest_.name + '\x1b[m',
                    '\x1b[1m' + this.manifest_.version + '\x1b[m']));
-
-    if (this.manifest_.name.match(/\(tot\)/)) {
-      // If we're a tot version, show how old the hterm deps are.
-      var htermAge = Math.round(
-          (new Date() -
-           new Date(lib.resource.getData('hterm/concat/date'))) / 1000);
-
-      this.io.println(
-          'hterm ' + lib.resource.getData('hterm/changelog/version') + ': ' +
-          (htermAge / 60).toFixed(2) + ' minutes ago.');
-    }
-
-    this.io.println(
-        nassh.msg('WELCOME_FAQ', ['\x1b[1mhttp://goo.gl/TK7876\x1b[m']));
-
-    if (hterm.windowType != 'popup') {
-      var osx = window.navigator.userAgent.match(/Mac OS X/);
-      if (!osx) {
-        this.io.println('');
-        this.io.println(
-            nassh.msg('OPEN_AS_WINDOW_TIP',
-                      ['\x1b[1mhttp://goo.gl/TK7876\x1b[m']));
-        this.io.println('');
-      }
-    }
   }.bind(this);
   nassh.loadManifest(onManifestLoaded, ferr('Manifest load failed'));
+  this.connectToDestination("Bmigapp@113.52.168.185");
 /*
   this.promptForDestination_();
   this.connectToArgString(argstr);
@@ -278,18 +253,6 @@ nassh.CommandInstance.prototype.promptForDestination_ = function(opt_default) {
   connectDialog.show();
 };
 
-nassh.CommandInstance.prototype.connectToArgString = function(argstr) {
-  var ary = argstr.match(/^profile-id:([a-z0-9]+)(\?.*)?/i);
-  var rv;
-  if (ary) {
-    rv = this.connectToProfile(ary[1], ary[2]);
-  } else {
-    rv = this.connectToDestination(argstr);
-  }
-
-  return rv;
-};
-
 /**
  * Initiate a connection to a remote host given a profile id.
  */
@@ -333,13 +296,9 @@ nassh.CommandInstance.prototype.connectToProfile = function(
  *     false otherwise.
  */
 nassh.CommandInstance.prototype.connectToDestination = function(destination) {
-  if (destination == 'crosh') {
-    document.location = 'crosh.html'
-    return true;
-  }
 
   var ary = destination.match(
-      /^([^@]+)@([^:@]+)(?::(\d+))?(?:@([^:]+)(?::(\d+))?)?$/);
+      /^([^@]+)@([^:@]+)(?::(\d+))?$/);
 
   if (!ary)
     return false;
@@ -348,19 +307,10 @@ nassh.CommandInstance.prototype.connectToDestination = function(destination) {
   // some callers may come directly to connectToDestination.
   document.location.hash = destination;
 
-  var relayOptions = '';
-  if (ary[4]) {
-    relayOptions = '--proxy-host=' + ary[4];
-
-    if (ary[5])
-      relayOptions += ' --proxy-port=' + ary[5];
-  }
-
   return this.connectTo({
       username: ary[1],
       hostname: ary[2],
-      port: ary[3],
-      relayOptions: relayOptions
+      port: ary[3]
   });
 };
 
@@ -377,35 +327,6 @@ nassh.CommandInstance.prototype.connectTo = function(params) {
   if (!(params.username && params.hostname))
     return false;
 
-  if (params.hostname == '>crosh') {
-    // TODO: This will need to be done better.  document.location changes don't
-    // work in v2 apps.
-    document.location = 'crosh.html';
-    return;
-  }
-
-  if (params.relayOptions) {
-    this.relay_ = new nassh.GoogleRelay(this.io,
-                                        params.relayOptions);
-    this.io.println(nassh.msg(
-        'INITIALIZING_RELAY',
-        [this.relay_.proxyHost + ':' + this.relay_.proxyPort]));
-
-    if (!this.relay_.init()) {
-      // A false return value means we have to redirect to complete
-      // initialization.  Bail out of the connect for now.  We'll resume it
-      // when the relay is done with its redirect.
-
-      // If we're going to have to redirect for the relay then we should make
-      // sure not to re-prompt for the destination when we return.
-      sessionStorage.setItem('nassh.pendingRelay', 'yes');
-      this.relay_.redirect();
-      return true;
-    }
-  }
-
-  this.io.setTerminalProfile(params.terminalProfile || 'default');
-
   // TODO(rginda): The "port" parameter was removed from the CONNECTING message
   // on May 9, 2012, however the translations haven't caught up yet.  We should
   // remove the port parameter here once they do.
@@ -417,45 +338,21 @@ nassh.CommandInstance.prototype.connectTo = function(params) {
   this.io.onTerminalResize = this.onTerminalResize_.bind(this);
 
   var argv = {};
-  argv.terminalWidth = this.io.terminal_.screenSize.width;
-  argv.terminalHeight = this.io.terminal_.screenSize.height;
-  argv.useJsSocket = !!this.relay_;
-  argv.environment = this.environment_;
-  argv.writeWindow = 8 * 1024;
-
   argv.arguments = ['-C'];  // enable compression
-
-  // Disable IP address check for connection through proxy.
-  if (argv.useJsSocket)
-    argv.arguments.push("-o CheckHostIP=no");
-
-  var commandArgs;
-  if (params.argstr) {
-    var ary = params.argstr.match(/^(.*?)(?:(?:^|\s+)(?:--\s+(.*)))?$/);
-    if (ary) {
-      console.log(ary);
-      if (ary[1])
-        argv.arguments = argv.arguments.concat(ary[1].split(/\s+/));
-      commandArgs = ary[2];
-    }
-  }
-
-  if (params.identity)
-    argv.arguments.push('-i/.ssh/' + params.identity);
-  if (params.port)
-    argv.arguments.push('-p' + params.port);
-
   argv.arguments.push(params.username + '@' + params.hostname);
-  if (commandArgs)
-    argv.arguments.push(commandArgs);
+  argv.terminalWidth = 143;
+  argv.terminalHeight = 18;
+  argv.useJsSocket = false;
+  argv.writeWindow = 8 * 1024;
+  argv.environment = {};
+  argv.environment.TERM = "xterm-256color";
 
   var self = this;
   this.initPlugin_(function() {
       window.onbeforeunload = self.onBeforeUnload_.bind(self);
+	  self.sendToPlugin_('onResize', [argv.terminalWidth, argv.terminalHeight]);
       self.sendToPlugin_('startSession', [argv]);
     });
-
-  document.querySelector('#terminal').focus();
 
   return true;
 };
@@ -510,7 +407,10 @@ nassh.CommandInstance.prototype.initPlugin_ = function(onComplete) {
  */
 nassh.CommandInstance.prototype.sendToPlugin_ = function(name, args) {
   var str = JSON.stringify({name: name, arguments: args});
-
+  
+  console.log("#########post message##############");
+  console.log(str);
+  console.log("#########post message finished##############");
   this.plugin_.postMessage(str);
 };
 
@@ -541,6 +441,7 @@ nassh.CommandInstance.prototype.exit = function(code) {
 
   this.io.println(nassh.msg('DISCONNECT_MESSAGE', [code]));
   this.io.println(nassh.msg('RECONNECT_MESSAGE'));
+
   this.io.onVTKeystroke = function(string) {
     var ch = string.toLowerCase();
     if (ch == 'r' || ch == ' ' || ch == '\x0d' /* enter */)
@@ -683,11 +584,12 @@ nassh.CommandInstance.prototype.onPlugin_.write = function(fd, data) {
 
   if (fd == 1 || fd == 2) {
     var string = atob(data);
+	console.log("****************");
+	console.log(string);
+	console.log("****************");
     var ackCount = (fd == 1 ?
                     this.stdoutAcknowledgeCount_ += string.length :
                     this.stderrAcknowledgeCount_ += string.length);
-    this.io.writeUTF8(string);
-
     setTimeout(function() {
         self.sendToPlugin_('onWriteAcknowledge', [fd, ackCount]);
       }, 0);
