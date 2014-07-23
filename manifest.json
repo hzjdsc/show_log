@@ -1,14 +1,24 @@
 {
-    "name":"Show Log",
-    "manifest_version":2,
-    "version":"0.1",
-	"default_locale": "en",
-	"permissions": [
-		"storage"
-	],
-    "app":{
-        "launch":{
-            "local_path": "html/home.html"
-        }
+  "key": "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDixnK8f4AuZrV+QZx7iiONG/SAiU5VrjlXD2KxRGvI6tDJrLvUin+GpcuMH1d/Qrc0+PmCzJ1duAiD/9F2q8kiYwQ1C3gZmztYneAiVX+3/OvXHr/idyueNQ5XFvBnMCpKD0KqPEksP80utV417fuaHAY4NFjofLZyWUvu23XHRwIDAQAB",
+  "name": "Show Log",
+  "manifest_version": 2,
+  "content_security_policy": "script-src 'self'; object-src 'self'",
+  "version":"0.1",
+  "default_locale": "en",
+  "offline_enabled": true,
+  "permissions": [
+    "clipboardRead",
+    "clipboardWrite",
+    "unlimitedStorage",
+    "storage",
+    "terminalPrivate"
+  ],
+  "web_accessible_resources": [
+    "html/home.html"
+  ],
+  "app":{
+    "launch":{
+      "local_path": "html/home.html"
     }
+  }
 }
