@@ -3,6 +3,7 @@
 function initPlugin() {
   function onPluginLoaded() {
     console.log("plugin loaded done");
+	call_plugin();
   };
 
   var plugin = window.document.createElement('embed');
@@ -12,10 +13,11 @@ function initPlugin() {
        'width: 0;' +
        'height: 0;');
 
-  var pluginURL = '../plugin/pnacl/ssh_client.nmf';
+  var pluginURL = '../plugin/nacl/ssh_client.nmf';
 
   plugin.setAttribute('src', pluginURL);
   plugin.setAttribute('type', 'application/x-nacl');
+  plugin.setAttribute('id', 'ssh_plugin');
   plugin.addEventListener('load', onPluginLoaded);
   plugin.addEventListener('message', onPluginMessage);
   plugin.addEventListener('crash', function (ev) {
@@ -24,11 +26,11 @@ function initPlugin() {
   });
 
   document.body.insertBefore(plugin, document.body.firstChild);
-  return plugin;
 };
+window.onload = initPlugin;
+
 
 function onPluginMessage(e) {
-  console.log("OH great, there is message");
   var msg = JSON.parse(e.data);
   msg.argv = msg.arguments;
 
@@ -39,13 +41,13 @@ function onPluginMessage(e) {
   }
 };
 
-function sendToPlugin(plugin, name, args) {
+function sendToPlugin(name, args) {
   var str = JSON.stringify({name: name, arguments: args});
-
   console.log("#########post message##############");
   console.log(str);
   console.log("#########post message finished##############\n");
   
+  var plugin = document.getElementById("ssh_plugin");
   plugin.postMessage(str);
 };
 
@@ -73,9 +75,15 @@ plugin_handler.openSocket = function(
 };
 
 plugin_handler.write = function(fd, data) {
-  console.log('plugin write');
-  console.log(fd);
-  console.log(data);
+  var return_string = atob(data);
+  console.log(return_string);
+  if (return_string.match(/Are you sure you want to continue connecting \(yes\/no\)\?/)) {
+    sendToPlugin('onRead', [0, btoa("yes\n")]);
+  }
+  if (return_string.match(/Password:/)) {
+    sendToPlugin('onRead', [0, btoa("Pass2013\n")]);
+  }
+  
 /*
   if (fd == 1 || fd == 2) {
     var string = atob(data);
@@ -112,17 +120,15 @@ plugin_handler.close = function(fd) {
   console.log('plugin close');
 };
 
-function call_plugin(plugin){
-	var args_start = JSON.parse('[{"terminalWidth":143,"terminalHeight":34,"useJsSocket":false,"environment":{"TERM":"xterm-256color"},"writeWindow":8192,"arguments":["-C","Bmigapp@113.52.168.185"]}]');
-	var args_resize = JSON.parse('[143,34]');
+function call_plugin(){
+	var start_session_args = JSON.parse('[{"useJsSocket":false,"environment":{"TERM":"xterm-256color"},"writeWindow":8192,"arguments":["-C","test@10.16.128.20"]}]');
+	var yes_string = atob("yes");
+	sendToPlugin('startSession', start_session_args);
+//	sendToPlugin('onRead', [0, btoa("Pass2013\n")]);
 	
-	sendToPlugin(plugin, 'onResize', args_resize);
-
-	sendToPlugin(plugin, 'startSession', args_start);
 }
 
-var plugin_obj = initPlugin();
-setTimeout(call_plugin.bind(null,plugin_obj),1000);
+
 
 
 
