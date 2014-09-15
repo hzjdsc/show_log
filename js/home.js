@@ -76,14 +76,32 @@ plugin_handler.openSocket = function(
 
 plugin_handler.write = function(fd, data) {
   var return_string = atob(data);
+  console.log("******Start**********");
+  console.log('qq'+fd+'qq');
   console.log(return_string);
+  console.log("******End**********\n");
   if (return_string.match(/Are you sure you want to continue connecting \(yes\/no\)\?/)) {
     sendToPlugin('onRead', [0, btoa("yes\n")]);
   }
-  if (return_string.match(/Password:/)) {
-    sendToPlugin('onRead', [0, btoa("Pass2013\n")]);
+  else if (return_string.match(/Password:/)) {
+    sendToPlugin('onRead', [0, btoa("Pass2014\n")]);
   }
-  
+  else if (return_string.match(/Last login:/)) {
+	sendToPlugin('onRead', [0, btoa("cd ~;cat app.log\n")]);
+  }
+  else if (return_string.match(/weblogictest/)) {
+	plugin_handler.write = function(fd, data) {
+	  var return_string = atob(data);
+	  console.log("******Start**********");
+	  console.log('qq'+fd+'qq');
+      console.log(return_string);
+      console.log("******End**********\n");
+	  if( fd == 1) {
+	    var string = document.getElementById("output").innerHTML;
+	    document.getElementById("output").innerHTML = string + return_string;
+	  }
+	}
+  }
 /*
   if (fd == 1 || fd == 2) {
     var string = atob(data);
@@ -124,8 +142,7 @@ function call_plugin(){
 	var start_session_args = JSON.parse('[{"useJsSocket":false,"environment":{"TERM":"xterm-256color"},"writeWindow":8192,"arguments":["-C","test@10.16.128.20"]}]');
 	var yes_string = atob("yes");
 	sendToPlugin('startSession', start_session_args);
-//	sendToPlugin('onRead', [0, btoa("Pass2013\n")]);
-	
+//	setTimeout(function(){ sendToPlugin('onRead', [0, btoa("cd ~; cat app.log\n")])}, 0);
 }
 
 
